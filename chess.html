@@ -7,23 +7,17 @@
   <title>Catur — FastGames</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/chess.css">
 </head>
 <body class="chess-page">
 
-  <div class="bg-orbs" aria-hidden="true">
-    <span class="orb orb-1"></span>
-    <span class="orb orb-2"></span>
-    <span class="orb orb-3"></span>
-  </div>
-
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="brand" aria-label="Kembali ke FastGames">
         <span class="brand-mark">
-          <svg viewBox="0 0 32 32" width="24" height="24" fill="none">
+          <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
             <path d="M6 22L16 6L26 22H6Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
             <circle cx="16" cy="18" r="2" fill="currentColor"/>
           </svg>
@@ -39,9 +33,9 @@
   <main class="chess-main">
     <div class="container chess-layout">
 
-      <aside class="chess-sidebar glass-card">
+      <aside class="chess-sidebar">
         <div class="panel-group">
-          <div class="turn-indicator" id="turnIndicator">
+          <div class="turn-indicator">
             <span class="turn-dot" id="turnDot"></span>
             <span class="turn-label">Giliran</span>
             <span class="turn-value" id="turnValue">Putih</span>
@@ -65,16 +59,16 @@
 
         <div class="panel-group panel-history">
           <div class="panel-title">Riwayat Langkah</div>
-          <ol class="history-list" id="historyList">
-            <li class="history-empty">Belum ada langkah.</li>
-          </ol>
+          <div class="history-list" id="historyList">
+            <div class="history-empty">Belum ada langkah.</div>
+          </div>
         </div>
 
         <div class="panel-group panel-actions">
           <button type="button" class="btn btn-primary btn-block" id="btnNewGame">Game Baru</button>
           <div class="action-row">
             <button type="button" class="btn btn-ghost btn-half" id="btnUndo">Undo</button>
-            <button type="button" class="btn btn-ghost btn-half" id="btnFlip">Flip Board</button>
+            <button type="button" class="btn btn-ghost btn-half" id="btnFlip">Flip</button>
           </div>
         </div>
       </aside>
@@ -86,15 +80,9 @@
         </div>
 
         <div class="board-wrap">
-          <div class="board-rank-labels" id="rankLabels"></div>
           <div class="board-frame">
             <div class="chess-board" id="board" role="grid" aria-label="Papan catur"></div>
           </div>
-          <div class="board-file-labels" id="fileLabels"></div>
-        </div>
-
-        <div class="stage-foot">
-          <span class="foot-hint">Tip: gunakan tombol Undo untuk membatalkan langkah terakhir.</span>
         </div>
       </section>
 
@@ -102,7 +90,7 @@
   </main>
 
   <div class="promotion-overlay" id="promotionOverlay" hidden>
-    <div class="promotion-modal glass-card">
+    <div class="promotion-modal">
       <h2 class="promotion-title">Pilih Promosi</h2>
       <p class="promotion-sub">Bidak pion mencapai baris terakhir. Pilih bidak pengganti.</p>
       <div class="promotion-options" id="promotionOptions"></div>
