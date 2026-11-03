@@ -973,4 +973,363 @@
       roomCode: null
     };
     setMultiStatus('');
-    if (r.roomBox) r.roomBox.h
+    if (r.roomBox) r.roomBox.hidden = true;
+  }
+
+  function showMultiScreen() {
+    const r = state.refs;
+    r.modeScreen.hidden = true;
+    r.multiScreen.hidden = false;
+    r.gameLayout.hidden = true;
+    setMultiStatus('');
+  }
+
+  function setMultiStatus(text, kind) {
+    const el = state.refs.multiStatus;
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'multi-status' + (kind ? ' ' + kind : '');
+  }
+
+  // ---------- Click ----------
+  function canMove() {
+    if (!state.game) return false;
+    const g = state.game;
+    if (g.gameOver || g.pendingPromotion) return false;
+
+    if (state.mode === 'local') return true;
+    if (state.mode === 'ai') {
+      return !state.aiThinking && g.turn === state.humanColor;
+    }
+    if (state.mode === 'multi') {
+      if (!state.multi.opponentConnected) return false;
+      return g.turn === state.multi.myColor;
+    }
+    return false;
+  }
+
+  function handleClick(r, c) {
+    if (!canMove()) return;
+    const g = state.game;
+    const piece = g.get(r, c);
+
+    if (g.selected) {
+      let target = null;
+      for (let i = 0; i < g.legalMoves.length; i++) {
+        const m = g.legalMoves[i];
+        if (m.to.r === r && m.to.c === c) { target = m; break; }
+      }
+
+      if (target) {
+        if (target.special === 'promotion') {
+          openPromotion(g.selected, { r: r, c: c });
+          return;
+        }
+        executeMove(target);
+        return;
+      }
+
+      if (piece && piece.color === g.turn) {
+        g.selected = { r: r, c: c };
+        g.legalMoves = g.legalMovesFrom(r, c);
+        schedulePaint();
+        return;
+      }
+
+      g.selected = null;
+      g.legalMoves = [];
+      schedulePaint();
+      return;
+    }
+
+    if (piece && piece.color === g.turn) {
+      g.selected = { r: r, c: c };
+      g.legalMoves = g.legalMovesFrom(r, c);
+      schedulePaint();
+    }
+  }
+
+  function executeMove(move) {
+    const g = state.game;
+    const san = g.toSan(move);
+    g.makeMove(move, san);
+    g.selected = null;
+    g.legalMoves = [];
+
+    if (state.mode === 'multi' && window.FastMultiplayer) {
+      window.FastMultiplayer.sendMove({
+        from: { r: move.from.r, c: move.from.c },
+        to: { r: move.to.r, c: move.to.c },
+        promotion: move.promotion || null
+      });
+    }
+
+    paintAll();
+    afterMove();
+
+    if (state.mode === 'ai') {
+      scheduleAi();
+    }
+  }
+
+  function afterMove() {
+    const g = state.game;
+    if (g.gameOver && g.result && window.FG && window.FG.toast) {
+      window.FG.toast(g.result.message, 3000);
+    }
+  }
+
+  // ---------- AI ----------
+  function scheduleAi() {
+    if (state.mode !== 'ai') return;
+    const g = state.game;
+    if (g.gameOver || g.turn !== state.aiColor) return;
+    if (!window.ChessAI) return;
+
+    state.aiThinking = true;
+    paintSidebar();
+
+    setTimeout(function () {
+      let move = null;
+      try {
+        move = window.ChessAI.findBestMove(g, 3);
+      } catch (e) {
+        console.error('AI error:', e);
+      }
+      state.aiThinking = false;
+
+      if (move) {
+        const san = g.toSan(move);
+        g.makeMove(move, san);
+        g.selected = null;
+        g.legalMoves = [];
+      }
+      paintAll();
+      afterMove();
+    }, 250);
+  }
+
+  // ---------- Promotion ----------
+  function openPromotion(from, to) {
+    const g = state.game;
+    g.pendingPromotion = { from: from, to: to };
+    const ov = state.refs.promoOverlay;
+    const opts = state.refs.promoOptions;
+    if (!ov || !opts) return;
+    opts.innerHTML = '';
+    const color = g.turn;
+    const list = ['q', 'r', 'b', 'n'];
+    for (let i = 0; i < 4; i++) {
+      const type = list[i];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'promo-btn';
+      btn.textContent = PIECE_SYMBOL[color + '-' + type];
+      btn.setAttribute('aria-label', PIECE_NAMES[type]);
+      btn.addEventListener('click', (function (t) {
+        return function () { completePromotion(t); };
+      })(type));
+      opts.appendChild(btn);
+    }
+    ov.hidden = false;
+  }
+
+  function completePromotion(type) {
+    const g = state.game;
+    if (!g.pendingPromotion) return;
+    const from = g.pendingPromotion.from;
+    const to = g.pendingPromotion.to;
+    const move = g.findMove(from, to, type);
+    g.pendingPromotion = null;
+    if (state.refs.promoOverlay) state.refs.promoOverlay.hidden = true;
+
+    if (move) {
+      executeMove(move);
+    } else {
+      paintAll();
+    }
+  }
+
+  // ---------- Public API for multiplayer module ----------
+  window.ChessUI = {
+    onRemoteMove: function (data) {
+      const g = state.game;
+      if (!g) return;
+      if (!data || !data.from || !data.to) return;
+      const move = g.findMove(data.from, data.to, data.promotion || null);
+      if (!move) {
+        if (window.FG) window.FG.toast('Langkah lawan tidak valid.', 2000);
+        return;
+      }
+      const san = g.toSan(move);
+      g.makeMove(move, san);
+      g.selected = null;
+      g.legalMoves = [];
+      paintAll();
+      afterMove();
+    },
+    onRoomCreated: function (code) {
+      state.multi.connected = true;
+      state.multi.isHost = true;
+      state.multi.myColor = WHITE;
+      state.multi.roomCode = code;
+      if (state.refs.roomBox) state.refs.roomBox.hidden = false;
+      if (state.refs.roomCodeDisplay) state.refs.roomCodeDisplay.textContent = code;
+      setMultiStatus('Room dibuat. Bagikan kode ke teman.', 'success');
+    },
+    onRoomJoined: function (code) {
+      state.multi.connected = true;
+      state.multi.isHost = false;
+      state.multi.myColor = BLACK;
+      state.multi.opponentConnected = true;
+      state.multi.roomCode = code;
+      startMultiGame();
+    },
+    onOpponentJoined: function () {
+      state.multi.opponentConnected = true;
+      startMultiGame();
+    },
+    onOpponentLeft: function () {
+      state.multi.opponentConnected = false;
+      if (window.FG) window.FG.toast('Lawan keluar dari room.', 2500);
+      paintSidebar();
+    },
+    onDisconnect: function () {
+      state.multi.connected = false;
+      state.multi.opponentConnected = false;
+    },
+    onError: function (msg) {
+      setMultiStatus(msg, 'error');
+    },
+    getMode: function () { return state.mode; }
+  };
+
+  function startMultiGame() {
+    state.game = new ChessEngine.ChessGame();
+    state.game.flipped = state.multi.myColor === BLACK;
+    state.refs.multiScreen.hidden = true;
+    state.refs.gameLayout.hidden = false;
+    reorderForFlip();
+    paintAll();
+    if (window.FG) window.FG.toast('Lawan terhubung. Mulai bermain!', 2200);
+  }
+
+  // ---------- Controls ----------
+  function bindControls() {
+    const r = state.refs;
+
+    // Mode cards
+    document.querySelectorAll('.mode-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        const mode = card.dataset.mode;
+        if (mode === 'multi') {
+          showMultiScreen();
+        } else {
+          setMode(mode);
+        }
+      });
+    });
+
+    if (r.btnBackMode) {
+      r.btnBackMode.addEventListener('click', backToMenu);
+    }
+    if (r.btnMenu) {
+      r.btnMenu.addEventListener('click', backToMenu);
+    }
+
+    if (r.btnNewGame) {
+      r.btnNewGame.addEventListener('click', function () {
+        if (state.mode === 'multi') {
+          if (window.FG) window.FG.toast('Game baru tidak tersedia di multiplayer.', 2200);
+          return;
+        }
+        if (!state.game) return;
+        state.game.reset();
+        state.game.flipped = state.mode === 'ai' ? false : state.game.flipped;
+        reorderForFlip();
+        paintAll();
+        if (window.FG) window.FG.toast('Game baru dimulai.');
+      });
+    }
+
+    if (r.btnUndo) {
+      r.btnUndo.addEventListener('click', function () {
+        if (state.mode === 'multi') {
+          if (window.FG) window.FG.toast('Undo tidak tersedia di multiplayer.', 2200);
+          return;
+        }
+        if (!state.game) return;
+        if (state.game.undo()) {
+          paintAll();
+        } else if (window.FG) {
+          window.FG.toast('Tidak ada langkah untuk dibatalkan.');
+        }
+      });
+    }
+
+    if (r.btnFlip) {
+      r.btnFlip.addEventListener('click', function () {
+        if (!state.game) return;
+        state.game.flipped = !state.game.flipped;
+        reorderForFlip();
+        paintAll();
+      });
+    }
+
+    // Multiplayer buttons
+    if (r.btnCreateRoom) {
+      r.btnCreateRoom.addEventListener('click', function () {
+        if (!window.FastMultiplayer) {
+          setMultiStatus('Modul multiplayer tidak tersedia.', 'error');
+          return;
+        }
+        setMultiStatus('Menghubungkan ke server...', 'info');
+        window.FastMultiplayer.createRoom();
+      });
+    }
+
+    if (r.btnJoinRoom) {
+      r.btnJoinRoom.addEventListener('click', function () {
+        if (!window.FastMultiplayer) {
+          setMultiStatus('Modul multiplayer tidak tersedia.', 'error');
+          return;
+        }
+        const code = (r.roomCodeInput && r.roomCodeInput.value || '').trim().toUpperCase();
+        if (!code) {
+          setMultiStatus('Masukkan kode room terlebih dahulu.', 'error');
+          return;
+        }
+        setMultiStatus('Menghubungkan ke server...', 'info');
+        window.FastMultiplayer.joinRoom(code);
+      });
+    }
+
+    if (r.roomCodeInput) {
+      r.roomCodeInput.addEventListener('input', function () {
+        const v = r.roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (r.roomCodeInput.value !== v) r.roomCodeInput.value = v;
+      });
+      r.roomCodeInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          if (r.btnJoinRoom) r.btnJoinRoom.click();
+        }
+      });
+    }
+  }
+
+  // ---------- Init ----------
+  function init() {
+    cacheRefs();
+    if (!state.refs.board) return;
+    buildBoard();
+    bindControls();
+    // Mode screen awal terlihat, game layout tersembunyi
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
