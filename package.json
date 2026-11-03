@@ -1,0 +1,12 @@
+{
+  "name": "fastgames",
+  "version": "1.0.0",
+  "description": "FastGames — koleksi game ringan dengan multiplayer LAN",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
