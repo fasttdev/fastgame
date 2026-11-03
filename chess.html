@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Catur — game strategi klasik di FastGames. Bermain dua pemain di satu perangkat.">
+  <meta name="description" content="Catur — game strategi klasik di FastGames.">
   <title>Catur — FastGames</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,60 +31,134 @@
   </header>
 
   <main class="chess-main">
-    <div class="container chess-layout">
+    <div class="container">
 
-      <aside class="chess-sidebar">
-        <div class="panel-group">
-          <div class="turn-indicator">
-            <span class="turn-dot" id="turnDot"></span>
-            <span class="turn-label">Giliran</span>
-            <span class="turn-value" id="turnValue">Putih</span>
-          </div>
-          <div class="status-line" id="statusLine">Pilih bidak untuk memulai.</div>
+      <!-- ============ MODE SELECTION ============ -->
+      <div class="mode-screen" id="modeScreen">
+        <div class="mode-head">
+          <h1 class="mode-title">Catur</h1>
+          <p class="mode-sub">Pilih cara bermain.</p>
+        </div>
+        <div class="mode-grid">
+          <button type="button" class="mode-card" data-mode="local">
+            <span class="mode-icon">♔</span>
+            <span class="mode-name">Lokal</span>
+            <span class="mode-desc">2 pemain, 1 perangkat</span>
+          </button>
+          <button type="button" class="mode-card" data-mode="ai">
+            <span class="mode-icon">♞</span>
+            <span class="mode-name">Vs Komputer</span>
+            <span class="mode-desc">Lawan AI</span>
+          </button>
+          <button type="button" class="mode-card" data-mode="multi">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-name">Multiplayer</span>
+            <span class="mode-desc">Main dengan teman di jaringan yang sama</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ MULTIPLAYER LOBBY ============ -->
+      <div class="mode-screen" id="multiScreen" hidden>
+        <div class="mode-head">
+          <h1 class="mode-title">Multiplayer</h1>
+          <p class="mode-sub">Main dengan teman di jaringan yang sama.</p>
         </div>
 
-        <div class="panel-group">
-          <div class="panel-title">Bidak Tertangkap</div>
-          <div class="captured-row">
-            <div class="captured-side">
-              <span class="captured-label">Putih</span>
-              <div class="captured-list" id="capturedByWhite"></div>
+        <div class="multi-panel">
+          <div class="multi-section">
+            <h2 class="multi-h2">Buat Room</h2>
+            <p class="multi-hint">Kamu dapat kode untuk dibagikan ke teman.</p>
+            <button type="button" class="btn btn-primary btn-block" id="btnCreateRoom">Buat Room</button>
+          </div>
+
+          <div class="multi-divider"><span>atau</span></div>
+
+          <div class="multi-section">
+            <h2 class="multi-h2">Gabung Room</h2>
+            <p class="multi-hint">Masukkan kode room dari temanmu.</p>
+            <div class="multi-join-row">
+              <input type="text" class="multi-input" id="roomCodeInput" placeholder="KODE" maxlength="5" autocomplete="off" spellcheck="false">
+              <button type="button" class="btn btn-primary" id="btnJoinRoom">Gabung</button>
             </div>
-            <div class="captured-side">
-              <span class="captured-label">Hitam</span>
-              <div class="captured-list" id="capturedByBlack"></div>
+          </div>
+
+          <div class="multi-status" id="multiStatus"></div>
+
+          <div class="multi-room-box" id="roomBox" hidden>
+            <div class="room-label">Kode Room</div>
+            <div class="room-code" id="roomCodeDisplay">-----</div>
+            <div class="room-wait">Menunggu lawan bergabung...</div>
+          </div>
+
+          <button type="button" class="btn btn-ghost btn-block multi-back" id="btnBackMode">← Kembali ke Menu</button>
+        </div>
+      </div>
+
+      <!-- ============ GAME LAYOUT ============ -->
+      <div class="chess-layout" id="gameLayout" hidden>
+
+        <aside class="chess-sidebar">
+          <div class="panel-group">
+            <div class="turn-indicator">
+              <span class="turn-dot" id="turnDot"></span>
+              <span class="turn-label">Giliran</span>
+              <span class="turn-value" id="turnValue">Putih</span>
+            </div>
+            <div class="status-line" id="statusLine">Pilih bidak untuk memulai.</div>
+          </div>
+
+          <div class="panel-group">
+            <div class="panel-title">Info</div>
+            <div class="info-row"><span>Mode</span><span id="infoMode">-</span></div>
+            <div class="info-row" id="infoColorRow"><span>Warna Anda</span><span id="infoColor">-</span></div>
+          </div>
+
+          <div class="panel-group">
+            <div class="panel-title">Bidak Tertangkap</div>
+            <div class="captured-row">
+              <div class="captured-side">
+                <span class="captured-label">Putih</span>
+                <div class="captured-list" id="capturedByWhite"></div>
+              </div>
+              <div class="captured-side">
+                <span class="captured-label">Hitam</span>
+                <div class="captured-list" id="capturedByBlack"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="panel-group panel-history">
-          <div class="panel-title">Riwayat Langkah</div>
-          <div class="history-list" id="historyList">
-            <div class="history-empty">Belum ada langkah.</div>
+          <div class="panel-group panel-history">
+            <div class="panel-title">Riwayat Langkah</div>
+            <div class="history-list" id="historyList">
+              <div class="history-empty">Belum ada langkah.</div>
+            </div>
           </div>
-        </div>
 
-        <div class="panel-group panel-actions">
-          <button type="button" class="btn btn-primary btn-block" id="btnNewGame">Game Baru</button>
-          <div class="action-row">
-            <button type="button" class="btn btn-ghost btn-half" id="btnUndo">Undo</button>
-            <button type="button" class="btn btn-ghost btn-half" id="btnFlip">Flip</button>
+          <div class="panel-group panel-actions">
+            <button type="button" class="btn btn-primary btn-block" id="btnNewGame">Game Baru</button>
+            <div class="action-row">
+              <button type="button" class="btn btn-ghost btn-half" id="btnUndo">Undo</button>
+              <button type="button" class="btn btn-ghost btn-half" id="btnFlip">Flip</button>
+            </div>
+            <button type="button" class="btn btn-ghost btn-block" id="btnMenu">Menu</button>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      <section class="chess-stage">
-        <div class="stage-head">
-          <h1 class="stage-title">Catur</h1>
-          <p class="stage-sub">Dua pemain, satu perangkat. Klik bidak, lalu klik tujuan.</p>
-        </div>
-
-        <div class="board-wrap">
-          <div class="board-frame">
-            <div class="chess-board" id="board" role="grid" aria-label="Papan catur"></div>
+        <section class="chess-stage">
+          <div class="stage-head">
+            <h1 class="stage-title">Catur</h1>
+            <p class="stage-sub" id="stageSub">Dua pemain, satu perangkat.</p>
           </div>
-        </div>
-      </section>
+
+          <div class="board-wrap">
+            <div class="board-frame">
+              <div class="chess-board" id="board" role="grid" aria-label="Papan catur"></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
 
     </div>
   </main>
@@ -101,5 +175,7 @@
 
   <script src="js/main.js"></script>
   <script src="js/chess.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/multiplayer.js"></script>
 </body>
 </html>
