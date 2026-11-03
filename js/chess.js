@@ -1,12 +1,9 @@
 'use strict';
 
 /* =========================================================
-   FastGames — chess.js (versi ringan)
-   Optimasi utama:
-   - 64 kotak dibuat sekali di init (buildBoard).
-   - Setelah itu hanya update className & isi piece (updateBoard).
-   - Tidak ada innerHTML = '' di setiap render.
-   - Render dijadwalkan via requestAnimationFrame.
+   FastGames — chess.js
+   Chess engine + UI layer + mode coordination.
+   Mode: 'local' | 'ai' | 'multi'
    ========================================================= */
 
 (function () {
@@ -47,7 +44,9 @@
   function squareName(r, c) { return FILES[c] + (8 - r); }
   function isInside(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
 
-  // ---------- Game Logic ----------
+  // =========================================================
+  // ChessGame
+  // =========================================================
   function ChessGame() { this.reset(); }
 
   ChessGame.prototype.reset = function () {
@@ -295,7 +294,7 @@
     return moves;
   };
 
-  // ---------- Attack ----------
+  // ---------- Attack detection ----------
   ChessGame.prototype.squareAttacked = function (r, c, byColor) {
     const pdir = byColor === WHITE ? 1 : -1;
     for (let dc = -1; dc <= 1; dc += 2) {
@@ -610,20 +609,70 @@
     return true;
   };
 
-  // =========================================================
-  // UI Layer — ringan
-  // =========================================================
+  // ---------- Light make / unmake untuk AI ----------
+  ChessGame.prototype.lightMake = function (move) {
+    const info = {
+      board: cloneBoard(this.board),
+      turn: this.turn,
+      castling: Object.assign({}, this.castling),
+      enPassant: this.enPassant ? { r: this.enPassant.r, c: this.enPassant.c } : null
+    };
+    const piece = this.get(move.from.r, move.from.c);
+    this.applyOnBoard(move);
+    this.updateCastling(move, piece);
+    this.enPassant = null;
+    if (move.special === 'double-pawn') {
+      this.enPassant = { r: (move.from.r + move.to.r) / 2, c: move.to.c };
+    }
+    this.turn = opposite(this.turn);
+    return info;
+  };
 
+  ChessGame.prototype.lightUnmake = function (info) {
+    this.board = info.board;
+    this.turn = info.turn;
+    this.castling = info.castling;
+    this.enPassant = info.enPassant;
+  };
+
+  // ---------- Expose engine ----------
+  window.ChessEngine = {
+    WHITE: WHITE,
+    BLACK: BLACK,
+    ChessGame: ChessGame,
+    opposite: opposite,
+    colorName: colorName,
+    squareName: squareName,
+    PIECE_SYMBOL: PIECE_SYMBOL
+  };
+
+  // =========================================================
+  // UI State
+  // =========================================================
   const state = {
+    mode: null,                // 'local' | 'ai' | 'multi' | null
     game: null,
-    squares: [],       // [r][c] = element, koordinat logis
+    squares: [],
     built: false,
     rafId: 0,
+    aiThinking: false,
+    humanColor: WHITE,         // untuk mode AI
+    aiColor: BLACK,
+    multi: {
+      connected: false,
+      opponentConnected: false,
+      isHost: false,
+      myColor: WHITE,
+      roomCode: null
+    },
     refs: {}
   };
 
   function cacheRefs() {
     const r = state.refs;
+    r.modeScreen = document.getElementById('modeScreen');
+    r.multiScreen = document.getElementById('multiScreen');
+    r.gameLayout = document.getElementById('gameLayout');
     r.board = document.getElementById('board');
     r.turnValue = document.getElementById('turnValue');
     r.turnDot = document.getElementById('turnDot');
@@ -634,11 +683,23 @@
     r.btnNewGame = document.getElementById('btnNewGame');
     r.btnUndo = document.getElementById('btnUndo');
     r.btnFlip = document.getElementById('btnFlip');
+    r.btnMenu = document.getElementById('btnMenu');
+    r.btnBackMode = document.getElementById('btnBackMode');
     r.promoOverlay = document.getElementById('promotionOverlay');
     r.promoOptions = document.getElementById('promotionOptions');
+    r.multiStatus = document.getElementById('multiStatus');
+    r.btnCreateRoom = document.getElementById('btnCreateRoom');
+    r.btnJoinRoom = document.getElementById('btnJoinRoom');
+    r.roomCodeInput = document.getElementById('roomCodeInput');
+    r.roomBox = document.getElementById('roomBox');
+    r.roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    r.infoMode = document.getElementById('infoMode');
+    r.infoColor = document.getElementById('infoColor');
+    r.infoColorRow = document.getElementById('infoColorRow');
+    r.stageSub = document.getElementById('stageSub');
   }
 
-  // Bangun 64 kotak sekali.
+  // ---------- Board build ----------
   function buildBoard() {
     const board = state.refs.board;
     if (!board) return;
@@ -664,7 +725,6 @@
     state.built = true;
   }
 
-  // Urutkan ulang DOM untuk flip (tanpa bikin ulang elemen).
   function reorderForFlip() {
     const board = state.refs.board;
     if (!board) return;
@@ -678,7 +738,7 @@
     }
   }
 
-  // Update differential — hanya ubah yang berbeda.
+  // ---------- Paint ----------
   function paintBoard() {
     const g = state.game;
     const squares = state.squares;
@@ -687,7 +747,6 @@
     const inCheck = g.inCheck;
     const kingPos = inCheck ? g.findKing(g.turn) : null;
 
-    // Kumpulan tujuan legal (map key r*8+c)
     const legalSet = new Set();
     for (let i = 0; i < g.legalMoves.length; i++) {
       const m = g.legalMoves[i];
@@ -709,15 +768,12 @@
         if (sel && sel.r === r && sel.c === c) cls += ' selected';
         if (kingPos && kingPos.r === r && kingPos.c === c) cls += ' check';
 
-        const key = r * 8 + c;
-        if (legalSet.has(key)) {
-          const hasTarget = !!g.get(r, c);
-          cls += hasTarget ? ' capture-move' : ' legal-move';
+        if (legalSet.has(r * 8 + c)) {
+          cls += g.get(r, c) ? ' capture-move' : ' legal-move';
         }
 
         if (sq.className !== cls) sq.className = cls;
 
-        // Update piece
         const piece = g.board[r][c];
         const first = sq.firstElementChild;
         if (piece) {
@@ -750,12 +806,22 @@
     if (r.statusLine) {
       let cls = 'status-line';
       let text;
-      if (g.gameOver && g.result) {
+      if (state.aiThinking) {
+        text = 'Komputer sedang berpikir...';
+        cls += ' alert';
+      } else if (g.gameOver && g.result) {
         text = g.result.message;
         cls += g.result.type === 'checkmate' ? ' success' : ' danger';
       } else if (g.inCheck) {
         text = 'Skak! ' + colorName(g.turn) + ' harus menyelamatkan raja.';
         cls += ' alert';
+      } else if (state.mode === 'multi' && !state.multi.opponentConnected) {
+        text = 'Menunggu lawan...';
+        cls += ' alert';
+      } else if (state.mode === 'multi' && g.turn === state.multi.myColor) {
+        text = 'Giliran Anda.';
+      } else if (state.mode === 'multi') {
+        text = 'Menunggu langkah lawan...';
       } else {
         text = 'Pilih bidak untuk memulai langkah ' + colorName(g.turn) + '.';
       }
@@ -771,7 +837,6 @@
     const g = state.game;
     const r = state.refs;
     if (r.capturedWhite) {
-      // white menangkap black
       let html = '';
       for (let i = 0; i < g.captured.b.length; i++) {
         html += '<span class="cap-piece">' + PIECE_SYMBOL['b-' + g.captured.b[i]] + '</span>';
@@ -816,6 +881,33 @@
     }
   }
 
+  function paintInfo() {
+    const r = state.refs;
+    if (r.infoMode) {
+      let label = '-';
+      if (state.mode === 'local') label = 'Lokal';
+      else if (state.mode === 'ai') label = 'Vs Komputer';
+      else if (state.mode === 'multi') label = 'Multiplayer';
+      r.infoMode.textContent = label;
+    }
+    if (r.infoColor && r.infoColorRow) {
+      if (state.mode === 'ai') {
+        r.infoColorRow.hidden = false;
+        r.infoColor.textContent = colorName(state.humanColor);
+      } else if (state.mode === 'multi') {
+        r.infoColorRow.hidden = false;
+        r.infoColor.textContent = colorName(state.multi.myColor);
+      } else {
+        r.infoColorRow.hidden = true;
+      }
+    }
+    if (r.stageSub) {
+      if (state.mode === 'local') r.stageSub.textContent = 'Dua pemain, satu perangkat.';
+      else if (state.mode === 'ai') r.stageSub.textContent = 'Anda melawan komputer.';
+      else if (state.mode === 'multi') r.stageSub.textContent = 'Room: ' + (state.multi.roomCode || '-');
+    }
+  }
+
   function schedulePaint() {
     if (state.rafId) return;
     state.rafId = requestAnimationFrame(function () {
@@ -828,149 +920,57 @@
   function paintAll() {
     paintBoard();
     paintSidebar();
+    paintInfo();
   }
 
-  // ---------- Click ----------
-  function handleClick(r, c) {
-    const g = state.game;
-    if (g.gameOver || g.pendingPromotion) return;
-
-    const piece = g.get(r, c);
-
-    if (g.selected) {
-      // Coba main di kotak ini
-      let target = null;
-      for (let i = 0; i < g.legalMoves.length; i++) {
-        const m = g.legalMoves[i];
-        if (m.to.r === r && m.to.c === c) { target = m; break; }
-      }
-
-      if (target) {
-        if (target.special === 'promotion') {
-          openPromotion(g.selected, { r: r, c: c });
-          return;
-        }
-        const san = g.toSan(target);
-        g.makeMove(target, san);
-        g.selected = null;
-        g.legalMoves = [];
-        paintAll();
-        afterMove();
-        return;
-      }
-
-      if (piece && piece.color === g.turn) {
-        g.selected = { r: r, c: c };
-        g.legalMoves = g.legalMovesFrom(r, c);
-        schedulePaint();
-        return;
-      }
-
-      g.selected = null;
-      g.legalMoves = [];
-      schedulePaint();
-      return;
-    }
-
-    if (piece && piece.color === g.turn) {
-      g.selected = { r: r, c: c };
-      g.legalMoves = g.legalMovesFrom(r, c);
-      schedulePaint();
-    }
-  }
-
-  function afterMove() {
-    if (state.game.gameOver && state.game.result && window.FG && window.FG.toast) {
-      window.FG.toast(state.game.result.message, 3000);
-    }
-  }
-
-  // ---------- Promotion ----------
-  function openPromotion(from, to) {
-    const g = state.game;
-    g.pendingPromotion = { from: from, to: to };
-    const ov = state.refs.promoOverlay;
-    const opts = state.refs.promoOptions;
-    if (!ov || !opts) return;
-    opts.innerHTML = '';
-    const color = g.turn;
-    const list = ['q', 'r', 'b', 'n'];
-    for (let i = 0; i < 4; i++) {
-      const type = list[i];
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'promo-btn';
-      btn.textContent = PIECE_SYMBOL[color + '-' + type];
-      btn.setAttribute('aria-label', PIECE_NAMES[type]);
-      btn.addEventListener('click', (function (t) {
-        return function () { completePromotion(t); };
-      })(type));
-      opts.appendChild(btn);
-    }
-    ov.hidden = false;
-  }
-
-  function completePromotion(type) {
-    const g = state.game;
-    if (!g.pendingPromotion) return;
-    const from = g.pendingPromotion.from;
-    const to = g.pendingPromotion.to;
-    const move = g.findMove(from, to, type);
-    if (move) {
-      const san = g.toSan(move);
-      g.makeMove(move, san);
-    }
-    g.pendingPromotion = null;
-    g.selected = null;
-    g.legalMoves = [];
-    if (state.refs.promoOverlay) state.refs.promoOverlay.hidden = true;
-    paintAll();
-    afterMove();
-  }
-
-  // ---------- Controls ----------
-  function bindControls() {
+  // ---------- Mode control ----------
+  function setMode(mode) {
+    state.mode = mode;
     const r = state.refs;
-    if (r.btnNewGame) {
-      r.btnNewGame.addEventListener('click', function () {
-        state.game.reset();
-        paintAll();
-        if (window.FG && window.FG.toast) window.FG.toast('Game baru dimulai.');
-      });
-    }
-    if (r.btnUndo) {
-      r.btnUndo.addEventListener('click', function () {
-        if (state.game.undo()) {
-          paintAll();
-        } else if (window.FG && window.FG.toast) {
-          window.FG.toast('Tidak ada langkah untuk dibatalkan.');
-        }
-      });
-    }
-    if (r.btnFlip) {
-      r.btnFlip.addEventListener('click', function () {
-        state.game.flipped = !state.game.flipped;
-        reorderForFlip();
-        paintAll();
-      });
+    r.modeScreen.hidden = true;
+    r.multiScreen.hidden = true;
+    r.gameLayout.hidden = false;
+
+    if (mode === 'local') {
+      state.game = new ChessEngine.ChessGame();
+      state.game.flipped = false;
+      reorderForFlip();
+      paintAll();
+    } else if (mode === 'ai') {
+      state.game = new ChessEngine.ChessGame();
+      state.game.flipped = false;
+      state.humanColor = WHITE;
+      state.aiColor = BLACK;
+      state.aiThinking = false;
+      reorderForFlip();
+      paintAll();
+    } else if (mode === 'multi') {
+      // game akan dibuat setelah kedua pemain terhubung
+      paintAll();
     }
   }
 
-  // ---------- Init ----------
-  function init() {
-    cacheRefs();
-    if (!state.refs.board) return;
-    state.game = new ChessGame();
-    buildBoard();
-    bindControls();
-    reorderForFlip(); // susunan awal (tidak flipped)
-    paintAll();
-  }
+  function backToMenu() {
+    const r = state.refs;
+    r.modeScreen.hidden = false;
+    r.multiScreen.hidden = true;
+    r.gameLayout.hidden = true;
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+    // Reset state
+    state.mode = null;
+    state.game = null;
+    state.aiThinking = false;
 
-})();
+    // Tutup multiplayer
+    if (window.FastMultiplayer) {
+      window.FastMultiplayer.disconnect();
+    }
+    state.multi = {
+      connected: false,
+      opponentConnected: false,
+      isHost: false,
+      myColor: WHITE,
+      roomCode: null
+    };
+    setMultiStatus('');
+    if (r.roomBox) r.roomBox.h
