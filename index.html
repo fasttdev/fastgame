@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FastGames — Koleksi game ringan, cepat, dan seru dimainkan langsung di browser.">
+  <title>FastGames — Main Cepat, Seru Terus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+  </div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand" aria-label="FastGames">
+        <span class="brand-mark">
+          <svg viewBox="0 0 32 32" width="24" height="24" fill="none">
+            <path d="M6 22L16 6L26 22H6Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+            <circle cx="16" cy="18" r="2" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-name">Fast<span class="brand-accent">Games</span></span>
+      </a>
+      <nav class="site-nav" aria-label="Navigasi utama">
+        <a href="#games" class="nav-link">Games</a>
+        <a href="#about" class="nav-link">Tentang</a>
+        <a href="chess.html" class="nav-cta">Main Sekarang</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-badge clay-badge">
+          <span class="dot"></span>
+          <span>Koleksi baru ditambahkan</span>
+        </div>
+        <h1 class="hero-title">
+          Main <span class="text-accent">Cepat</span>,<br>
+          Seru <span class="text-accent">Terus</span>.
+        </h1>
+        <p class="hero-sub">
+          Kumpulan game ringan yang bisa langsung dimainkan tanpa install.
+          Pilih game, buka browser, dan mulai bermain dalam hitungan detik.
+        </p>
+        <div class="hero-actions">
+          <a href="#games" class="btn btn-primary">Jelajahi Games</a>
+          <a href="chess.html" class="btn btn-ghost">Coba Catur</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat clay-card">
+            <span class="stat-num">1</span>
+            <span class="stat-label">Game Aktif</span>
+          </div>
+          <div class="stat clay-card">
+            <span class="stat-num">0</span>
+            <span class="stat-label">Install Dibutuhkan</span>
+          </div>
+          <div class="stat clay-card">
+            <span class="stat-num">∞</span>
+            <span class="stat-label">Keseruan</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="games" class="games-section">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">Pilih Game</h2>
+          <p class="section-sub">Setiap game punya halaman sendiri, jadi bisa kamu bookmark terpisah.</p>
+        </div>
+
+        <div class="games-grid">
+          <a href="chess.html" class="game-card glass-card">
+            <div class="game-thumb">
+              <div class="thumb-chess">
+                <span>♞</span>
+                <span>♜</span>
+                <span>♝</span>
+                <span>♛</span>
+              </div>
+            </div>
+            <div class="game-body">
+              <div class="game-meta">
+                <span class="tag">Strategi</span>
+                <span class="tag tag-soft">2 Pemain</span>
+              </div>
+              <h3 class="game-title">Catur</h3>
+              <p class="game-desc">Permainan papan klasik. Uji strategi dan taktik melawan lawan di satu perangkat.</p>
+              <span class="game-cta">Mainkan <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <div class="game-card glass-card game-card-soon">
+            <div class="game-thumb thumb-soon">
+              <span class="soon-mark">+</span>
+            </div>
+            <div class="game-body">
+              <div class="game-meta">
+                <span class="tag tag-soft">Segera</span>
+              </div>
+              <h3 class="game-title">Game Berikutnya</h3>
+              <p class="game-desc">Slot untuk game selanjutnya. Tambahkan file HTML baru di root dan daftarkan di sini.</p>
+              <span class="game-cta game-cta-disabled">Segera Hadir</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="about-section">
+      <div class="container">
+        <div class="about-card glass-card">
+          <div class="about-content">
+            <h2 class="section-title">Kenapa FastGames?</h2>
+            <p>Dirancang ringan, langsung jalan di browser tanpa setup ribet. Tampilan mengutamakan kenyamanan mata dan ritme bermain yang cepat.</p>
+            <ul class="about-list">
+              <li><span class="bullet"></span> Tanpa install, langsung main</li>
+              <li><span class="bullet"></span> Halaman per game, mudah di-bookmark</li>
+              <li><span class="bullet"></span> Ringan dan responsif di HP maupun desktop</li>
+              <li><span class="bullet"></span> Tema gelap biru muda, nyaman untuk sesi panjang</li>
+            </ul>
+          </div>
+          <div class="about-visual" aria-hidden="true">
+            <div class="clay-shape shape-1"></div>
+            <div class="clay-shape shape-2"></div>
+            <div class="clay-shape shape-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="brand-name">Fast<span class="brand-accent">Games</span></span>
+        <p class="footer-tag">Main cepat, seru terus.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#games">Games</a>
+        <a href="#about">Tentang</a>
+        <a href="chess.html">Catur</a>
+      </div>
+      <p class="footer-copy">© <span id="year"></span> FastGames. Dibuat untuk bermain.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
